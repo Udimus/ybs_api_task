@@ -1,3 +1,6 @@
+"""
+Run Flask application.
+"""
 import os
 import pickle
 import logging
@@ -31,7 +34,7 @@ def ping():
 @app.route('/imports', methods=['POST'])
 def import_data():
     app.logger.info('Data import.')
-    pass
+    data = request.get_json(force=True)
 
 
 @app.route(PATCH_URL, methods=['PATCH'])
