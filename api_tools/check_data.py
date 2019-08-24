@@ -69,7 +69,7 @@ def check_gender(citizen_data):
 def check_birth_date(citizen_data):
     today = get_today()
     birthday = str_to_date(citizen_data['birth_date'])
-    if today >= birthday:
+    if today <= birthday:
         raise ValueError("{} isn't correct birth date."
                          .format(citizen_data['birth_date']))
 
@@ -79,14 +79,18 @@ def check_relatives(citizen_data):
     # Later we should check,
     # if they are correct and commutative.
     for citizen_id in citizen_data['relatives']:
-        if type(citizen_id) is not int:
+        if (type(citizen_id) is not int
+                or citizen_id < 0):
             raise ValueError("List of relatives shouldn't contain {}."
                              .format(citizen_id))
 
 
 def check_citizen_fields(citizen_data):
-    for field, value in citizen_data:
+    for field, value in citizen_data.items():
         if type(value) != FIELDS[field]['type']:
+            raise ValueError("{} isn't correct value for the {}."
+                             .format(value, field))
+        if type(value) is int and value < 0:
             raise ValueError("{} isn't correct value for the {}."
                              .format(value, field))
         max_length = FIELDS[field].get('max_length')
@@ -133,9 +137,12 @@ def check_update_citizen(citizen_data):
     # If there unexpected fields
     unexpected_fields = set(citizen_data) - set(FIELDS)
     if unexpected_fields:
-        raise ValueError('{} fields are unexpected'
+        raise ValueError('{} fields are unexpected.'
                          .format(unexpected_fields))
+    if 'citizen_id' in citizen_data:
+        raise ValueError('You can\'t update \'citizen_id\'.')
     check_citizen_fields(citizen_data)
+    # Later we should check, if relatives update is correct.
 
 
 def check_citizens_group(citizens_group):
