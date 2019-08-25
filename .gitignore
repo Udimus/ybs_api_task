@@ -1,0 +1,10 @@
+# Some develops folders
+__pycache__/
+*.egg-info/
+
+# DB storage
+/postgres_storage
+
+# Test coverage info
+coverage.xml
+/.coverage

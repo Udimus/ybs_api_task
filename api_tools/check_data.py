@@ -7,6 +7,7 @@ from collections import Counter
 
 
 DATE_FORMAT = '%d.%m.%Y'
+MAX_INTEGER = 2147483647
 FIELDS = {
     'citizen_id': {
         'type': int,
@@ -79,7 +80,9 @@ def check_relatives(citizen_data):
     # Later we should check,
     # if they are correct and commutative.
     for citizen_id in citizen_data['relatives']:
-        if not isinstance(citizen_id, int) or citizen_id < 0:
+        if not isinstance(citizen_id, int)\
+                or citizen_id < 0\
+                or citizen_id > MAX_INTEGER:
             raise ValueError("List of relatives shouldn't contain {}."
                              .format(citizen_id))
 
@@ -89,7 +92,8 @@ def check_citizen_fields(citizen_data):
         if not isinstance(value, FIELDS[field]['type']):
             raise ValueError("{} isn't correct value for the {}."
                              .format(value, field))
-        if isinstance(value, int) and value < 0:
+        if isinstance(value, int) and \
+                (value < 0 or value > MAX_INTEGER):
             raise ValueError("{} isn't correct value for the {}."
                              .format(value, field))
         max_length = FIELDS[field].get('max_length')

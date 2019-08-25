@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:alpine
+    restart: always
+    expose:
+      - 5432
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: api
+      POSTGRES_DB: api_db
+    volumes:
+      - ./postgres_storage:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    restart: always
+    ports:
+      - 8080:5000
