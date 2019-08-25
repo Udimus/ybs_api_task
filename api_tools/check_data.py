@@ -79,18 +79,17 @@ def check_relatives(citizen_data):
     # Later we should check,
     # if they are correct and commutative.
     for citizen_id in citizen_data['relatives']:
-        if (type(citizen_id) is not int
-                or citizen_id < 0):
+        if not isinstance(citizen_id, int) or citizen_id < 0:
             raise ValueError("List of relatives shouldn't contain {}."
                              .format(citizen_id))
 
 
 def check_citizen_fields(citizen_data):
     for field, value in citizen_data.items():
-        if type(value) != FIELDS[field]['type']:
+        if not isinstance(value, FIELDS[field]['type']):
             raise ValueError("{} isn't correct value for the {}."
                              .format(value, field))
-        if type(value) is int and value < 0:
+        if isinstance(value, int) and value < 0:
             raise ValueError("{} isn't correct value for the {}."
                              .format(value, field))
         max_length = FIELDS[field].get('max_length')
@@ -112,8 +111,9 @@ def check_citizen_fields(citizen_data):
 
 
 def check_init_citizen(citizen_data):
-    if type(citizen_data) is not dict:
-        raise ValueError("Citizen info should be dictionary.")
+    if not isinstance(citizen_data, dict):
+        raise ValueError("Citizen info should be dict, not {}."
+                         .format(type(citizen_data)))
     # If there are unexpected or missed fields.
     if set(FIELDS) != set(citizen_data):
         missed_fields = set(FIELDS) - set(citizen_data)
@@ -132,8 +132,9 @@ def check_init_citizen(citizen_data):
 
 
 def check_update_citizen(citizen_data):
-    if type(citizen_data) is not dict:
-        raise ValueError("Citizen info should be dictionary.")
+    if not isinstance(citizen_data, dict):
+        raise ValueError("Citizen info should be dict, not {}."
+                         .format(type(citizen_data)))
     # If there unexpected fields
     unexpected_fields = set(citizen_data) - set(FIELDS)
     if unexpected_fields:
@@ -141,13 +142,15 @@ def check_update_citizen(citizen_data):
                          .format(unexpected_fields))
     if 'citizen_id' in citizen_data:
         raise ValueError('You can\'t update \'citizen_id\'.')
+    # Check data types and correctness.
     check_citizen_fields(citizen_data)
     # Later we should check, if relatives update is correct.
 
 
 def check_citizens_group(citizens_group):
-    if type(citizens_group) is not list:
-        raise ValueError("Citizens data should be list.")
+    if not isinstance(citizens_group, list):
+        raise ValueError("Citizens data should be list, not {}"
+                         .format(type(citizens_group)))
 
     # Check every citizen's data.
     for citizen in citizens_group:
@@ -176,5 +179,5 @@ def check_citizens_group(citizens_group):
                     del pairs_counter[edge]
     if len(pairs_counter) > 0:
         for pair in pairs_counter:
-            raise ValueError('There is something wrong with {} relatives.'
+            raise ValueError('Incorrect relatives of citizen_id={}.'
                              .format(pair[0]))
