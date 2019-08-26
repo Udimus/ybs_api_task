@@ -226,7 +226,7 @@ def prepare_birthday_stat(import_id, cur):
             'citizen_id': row[1],
             'presents': row[2],
         }
-        data[str(row[0])].append(citizen_dict)
+        data[str(int(row[0]))].append(citizen_dict)
     return data
 
 
