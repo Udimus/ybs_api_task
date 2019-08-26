@@ -52,12 +52,12 @@ def get_today():
     return datetime.now(timezone.utc).date()
 
 
-def str_to_date(date_string):
-    return datetime.strptime(date_string, DATE_FORMAT).date()
+def str_to_date(date_string, format=DATE_FORMAT):
+    return datetime.strptime(date_string, format).date()
 
 
-def date_to_str(date):
-    return datetime.strftime(date, DATE_FORMAT)
+def date_to_str(date, format=DATE_FORMAT):
+    return datetime.strftime(date, format)
 
 
 def check_gender(citizen_data):

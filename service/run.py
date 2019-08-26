@@ -28,7 +28,6 @@ from api_tools.db_tools import (
     load_import,
     calculate_birthdays,
     calculate_ages_stat,
-    prepare_citizen_data,
 )
 
 app = Flask(__name__)
@@ -69,11 +68,10 @@ def import_data():
     citizens = data['citizens']
     try:
         check_citizens_group(citizens)
-    except ValueError as error:
-        abort_request(error.args)
-    else:
         import_id_json = save_new_import(citizens)
         return correct_response(import_id_json, code=201)
+    except ValueError as error:
+        abort_request(error.args)
 
 
 @app.route(PATCH_URL, methods=['PATCH'])
@@ -84,16 +82,12 @@ def patch_data(import_id, citizen_id):
     citizen_update = request.get_json(force=True)
     try:
         check_update_citizen(citizen_update)
-        check_import_exists(import_id)
-        check_citizen_relatives_exist(import_id, citizen_id)
-        check_citizen_exists(import_id, citizen_id)
-    except ValueError as error:
-        abort_request(error.args)
-    else:
         citizen_json = update_import(import_id,
                                      citizen_id,
                                      citizen_update)
         return correct_response(citizen_json)
+    except ValueError as error:
+        abort_request(error.args)
 
 
 @app.route(GET_CITIZENS_URL, methods=['GET'])
@@ -102,12 +96,10 @@ def get_citizens(import_id):
     app.logger.debug('Get citizens from  import {}.'
                      .format(import_id))
     try:
-        check_import_exists(import_id)
-    except ValueError as error:
-        abort_request(error.args)
-    else:
         data = load_import(import_id)
         return correct_response(data)
+    except ValueError as error:
+        abort_request(error.args)
 
 
 @app.route(GET_BIRTHDAYS_URL, methods=['GET'])
@@ -116,12 +108,10 @@ def get_birthdays(import_id):
     app.logger.debug('Get birthdays from  import {}.'
                      .format(import_id))
     try:
-        check_import_exists(import_id)
-    except ValueError as error:
-        abort_request(error.args)
-    else:
         birthdays = calculate_birthdays(import_id)
         return correct_response(birthdays)
+    except ValueError as error:
+        abort_request(error.args)
 
 
 @app.route(GET_AGES_URL, methods=['GET'])
@@ -130,9 +120,7 @@ def get_ages(import_id):
     app.logger.debug('Get ages from  import {}.'
                      .format(import_id))
     try:
-        check_import_exists(import_id)
-    except ValueError as error:
-        abort_request(error.args)
-    else:
         ages = calculate_birthdays(import_id)
         return correct_response(ages)
+    except ValueError as error:
+        abort_request(error.args)

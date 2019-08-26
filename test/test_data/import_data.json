@@ -21,14 +21,14 @@
     "relatives": [1]
   },
   {
-  "citizen_id": 3,
-  "town": "Москва",
-  "street": "Льва Толстого",
-  "building": "16к7стр5",
-  "apartment": 7,
-  "name": "Иванова Мария Леонидовна",
-  "birth_date": "23.11.1986",
-  "gender": "female",
-  "relatives": []
+    "citizen_id": 3,
+    "town": "Керчь",
+    "street": "Иосифа Бродского",
+    "building": "2",
+    "apartment": 11,
+    "name": "Романова Мария Леонидовна",
+    "birth_date": "23.11.1986",
+    "gender": "female",
+    "relatives": []
   }
 ]
