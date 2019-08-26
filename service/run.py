@@ -120,7 +120,7 @@ def get_ages(import_id):
     app.logger.debug('Get ages from  import {}.'
                      .format(import_id))
     try:
-        ages = calculate_birthdays(import_id)
+        ages = calculate_ages_stat(import_id)
         return correct_response(ages)
     except ValueError as error:
         abort_request(error.args)

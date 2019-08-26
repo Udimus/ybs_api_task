@@ -2,7 +2,7 @@
 Tools to put and get data from DB.
 """
 import re
-from datetime import datetime
+from collections import defaultdict
 
 import psycopg2
 from flask import current_app as app
@@ -12,6 +12,23 @@ from api_tools.check_data import (
     str_to_date,
     date_to_str,
 )
+from api_tools.sql_queries import (
+    SET_TIMEZONE_SQL,
+    GET_TABLES_SQL,
+    CREATE_TYPE_SQL,
+    CREATE_TABLE_SQL,
+    INSERT_DATA_PATTERN,
+    FIELD_NAMES,
+    INSERT_INTO_SQL,
+    CHECK_IF_TABLE_EXISTS_SQL,
+    CHECK_IF_CITIZEN_EXISTS_SQL,
+    GET_FULL_TABLE_SQL,
+    UPDATE_SQL,
+    GET_RELATIVES_SQL,
+    GET_CITIZEN_SQL,
+    GET_BIRTHDAYS_SQL,
+    GET_AGES_SQL,
+)
 
 DB_CREDENTIALS = {
     'dbname': 'api_db',
@@ -20,75 +37,6 @@ DB_CREDENTIALS = {
 }
 TABLE_NAME_PATTERN = 'import_(\\d+)'
 POSTGRES_DATE_FORMAT = '%Y-%m-%d'
-
-SET_TIMEZONE_SQL = "SET timezone TO 'GMT';"
-GET_TABLES_SQL = """
-    SELECT table_name
-    FROM information_schema.tables
-    WHERE table_schema = 'public';
-"""
-CREATE_TYPE_SQL = """
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'gender_type')
-    THEN
-        CREATE TYPE gender_type AS ENUM ('male', 'female');
-    END IF;
-END $$;
-"""
-CREATE_TABLE_SQL = """
-    CREATE TABLE import_{} (
-        citizen_id integer PRIMARY KEY,
-        town varchar(256),
-        street varchar(256),
-        building varchar(256),
-        apartment integer,
-        name varchar(256),
-        birth_date date,
-        gender gender_type,
-        relatives integer[]
-    );
-"""
-INSERT_DATA_PATTERN = '({})'.format(','.join(['%s' for _ in range(9)]))
-FIELD_NAMES = [
-    'citizen_id',
-    'town',
-    'street',
-    'building',
-    'apartment',
-    'name',
-    'birth_date',
-    'gender',
-    'relatives',
-]
-INSERT_INTO_SQL = 'INSERT INTO import_{} VALUES '
-CHECK_IF_TABLE_EXISTS_SQL = """
-    SELECT to_regclass('public.import_{}');
-"""
-CHECK_IF_CITIZEN_EXISTS = """
-    SELECT EXISTS (
-        SELECT 1
-        FROM import_{}
-        WHERE citizen_id={}
-    )
-"""
-GET_FULL_TABLE_SQL = (
-    "SELECT "
-    + ",\n".join(FIELD_NAMES)
-    + " FROM import_{}"
-).replace("birth_date",
-          "to_char(birth_date, 'DD.MM.YYYY') as birth_date")
-UPDATE_SQL = """
-    UPDATE import_{}
-    SET {}
-    WHERE citizen_id={}
-"""
-GET_RELATIVES_SQL = """
-    SELECT relatives
-    FROM import_{}
-    WHERE citizen_id = {}
-"""
-GET_CITIZEN_SQL = GET_FULL_TABLE_SQL + "\nWHERE citizen_id={}"
 
 
 def get_new_table_id(cur):
@@ -104,6 +52,11 @@ def get_new_table_id(cur):
     return max(table_ids) + 1
 
 
+def accurate_rounding(number, precision):
+    multiplier = 10 ** precision
+    return int(number * multiplier) / multiplier
+
+
 def convert_date_string(date_string,
                         input_format=DATE_FORMAT,
                         output_format=POSTGRES_DATE_FORMAT):
@@ -115,7 +68,7 @@ def check_import_exists(import_id, cur):
     """
     Does import with this id really exist?
     """
-    sql = CHECK_IF_TABLE_EXISTS_SQL.format(import_id)
+    sql = CHECK_IF_TABLE_EXISTS_SQL.format(import_id=import_id)
     cur.execute(sql)
     result = cur.fetchall()[0][0]
     app.logger.debug('to_regclass() output for import %d: %s',
@@ -130,7 +83,8 @@ def check_citizen_exists(import_id, citizen_id, cur):
     """
     Does citizen_id in this import_id really exist?
     """
-    sql = CHECK_IF_CITIZEN_EXISTS.format(import_id, citizen_id)
+    sql = CHECK_IF_CITIZEN_EXISTS_SQL.format(import_id=import_id,
+                                             citizen_id=citizen_id)
     cur.execute(sql)
     result = cur.fetchall()[0][0]
     app.logger.debug('Is citizen %d in import %d: %s',
@@ -191,7 +145,9 @@ def prepare_update_info_sql(
                       .mogrify(field_update_string, (value,))
                       .decode('utf-8'))
     fields = ",\n".join(fields)
-    return UPDATE_SQL.format(import_id, fields, citizen_id)
+    return UPDATE_SQL.format(import_id=import_id,
+                             fields=fields,
+                             citizen_id=citizen_id)
 
 
 def get_current_relatives(
@@ -201,7 +157,8 @@ def get_current_relatives(
     """
     Load list if current relatives of given citizen.
     """
-    cur.execute(GET_RELATIVES_SQL.format(import_id, citizen_id))
+    cur.execute(GET_RELATIVES_SQL.format(import_id=import_id,
+                                         citizen_id=citizen_id))
     return cur.fetchall()[0][0]
 
 
@@ -258,6 +215,39 @@ def add_relative(
     cur.execute(sql)
 
 
+def prepare_birthday_stat(import_id, cur):
+    """
+    Load from database and convert to answer format birthdays presents stat.
+    """
+    data = defaultdict(list)
+    cur.execute(GET_BIRTHDAYS_SQL.format(import_id=import_id))
+    for row in cur.fetchall():
+        citizen_dict = {
+            'citizen_id': row[1],
+            'presents': row[2],
+        }
+        data[str(row[0])].append(citizen_dict)
+    return data
+
+
+def prepare_ages_stat(import_id, cur):
+    """
+    Load from database and convert to answer format ages stat.
+    """
+    data = []
+    cur.execute(GET_AGES_SQL.format(import_id=import_id))
+    for row in cur.fetchall():
+        town_dict = {
+            'town': row[0],
+            'p50': float(row[1]),
+            'p75': float(row[2]),
+            'p99': float(row[3]),
+        }
+        app.logger.debug('Town ages stat dict: {}'.format(town_dict))
+        data.append(town_dict)
+    return data
+
+
 def save_new_import(citizens):
     """
     Create table, save there data, return table id.
@@ -272,7 +262,7 @@ def save_new_import(citizens):
 
             import_id = get_new_table_id(cur)
             app.logger.debug('New import id is %d', import_id)
-            cur.execute(CREATE_TABLE_SQL.format(import_id))
+            cur.execute(CREATE_TABLE_SQL.format(import_id=import_id))
             app.logger.debug('Table \'import_%d\' has been created.', import_id)
 
             citizens_str_data = [citizen_data_to_string(citizen_data, cur)
@@ -282,10 +272,11 @@ def save_new_import(citizens):
             data_to_insert = ','.join(citizens_str_data)
 
             app.logger.debug('Data inserting...')
-            cur.execute(INSERT_INTO_SQL.format(import_id) + data_to_insert)
+            cur.execute(INSERT_INTO_SQL.format(import_id=import_id)
+                        + data_to_insert)
             app.logger.debug('Success!')
             conn.commit()
-    return {"import_id": import_id}
+            return {"import_id": import_id}
 
 
 def update_import(import_id,
@@ -340,11 +331,12 @@ def update_import(import_id,
                 citizen_update,
                 cur)
             cur.execute(update_sql)
-            citizen_sql = GET_CITIZEN_SQL.format(import_id, citizen_id)
+            citizen_sql = GET_CITIZEN_SQL.format(import_id=import_id,
+                                                 citizen_id=citizen_id)
             cur.execute(citizen_sql)
             citizen_tuple = cur.fetchall()[0]
             citizen_data = tuple_to_citizen_data(citizen_tuple)
-    return citizen_data
+            return citizen_data
 
 
 def load_import(import_id):
@@ -356,12 +348,11 @@ def load_import(import_id):
             app.logger.debug('DB cursor is ready...')
             cur.execute(SET_TIMEZONE_SQL)
             app.logger.debug('Set GMT as timezone.')
-
             app.logger.debug('If there is import %d...',
                              import_id)
             check_import_exists(import_id, cur)
 
-            sql = GET_FULL_TABLE_SQL.format(import_id)
+            sql = GET_FULL_TABLE_SQL.format(import_id=import_id)
             cur.execute(sql)
             result = cur.fetchall()
             app.logger.debug('There is %d rows at import %d.',
@@ -369,7 +360,7 @@ def load_import(import_id):
                              import_id)
             citizens = [tuple_to_citizen_data(citizen_tuple)
                         for citizen_tuple in result]
-    return citizens
+            return citizens
 
 
 def calculate_birthdays(import_id):
@@ -378,9 +369,16 @@ def calculate_birthdays(import_id):
     """
     with psycopg2.connect(**DB_CREDENTIALS) as conn:
         with conn.cursor() as cur:
+            app.logger.debug('DB cursor is ready...')
+            cur.execute(SET_TIMEZONE_SQL)
+            app.logger.debug('Set GMT as timezone.')
+            app.logger.debug('If there is import %d...',
+                             import_id)
             check_import_exists(import_id, cur)
-            birthdays_stat = {}
-    return birthdays_stat
+
+            app.logger.debug('Birthdays stat preparing...')
+            birthdays_stat = prepare_birthday_stat(import_id, cur)
+            return birthdays_stat
 
 
 def calculate_ages_stat(import_id):
@@ -389,6 +387,13 @@ def calculate_ages_stat(import_id):
     """
     with psycopg2.connect(**DB_CREDENTIALS) as conn:
         with conn.cursor() as cur:
+            app.logger.debug('DB cursor is ready...')
+            cur.execute(SET_TIMEZONE_SQL)
+            app.logger.debug('Set GMT as timezone.')
+            app.logger.debug('If there is import %d...',
+                             import_id)
             check_import_exists(import_id, cur)
-            ages_stat = {}
-    return ages_stat
+
+            app.logger.debug('Ages stat preparing...')
+            ages_stat = prepare_ages_stat(import_id, cur)
+            return ages_stat
