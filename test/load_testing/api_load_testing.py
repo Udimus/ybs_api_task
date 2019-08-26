@@ -107,7 +107,8 @@ def main():
         "-n",
         "--citizens",
         type=int,
-        default=10000
+        default=10000,
+        help='Number of citizens in test data.'
     )
     argparser.add_argument(
         "-p",
@@ -127,14 +128,14 @@ def main():
         "--concurrency",
         type=int,
         default=100,
-        help='Number of multiple requests to make at a time'
+        help='Number of concurrency requests at one moment.'
     )
     argparser.add_argument(
         "-r",
         "--requests",
         type=int,
         default=1000,
-        help='Number of requests to perform'
+        help='Number of requests to perform.'
     )
     argparser.add_argument(
         "-a",

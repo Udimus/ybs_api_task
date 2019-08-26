@@ -37,6 +37,13 @@ docker-compose up -d
 
 Первый раз это займёт некоторое время на сборку build'а для сервиса.
 
+Если же мы что-то поменяем и захотим пересобрать проект:
+
+```bash
+docker-compose down
+docker-compose up --build -d
+```
+
 
 ### Тесты
 
@@ -90,15 +97,17 @@ optional arguments:
   -v {CRITICAL,ERROR,WARNING,INFO,DEBUG,NOTSET}, --verbose {CRITICAL,ERROR,WARNING,INFO,DEBUG,NOTSET}
                         Set output verbosity level.
   -n CITIZENS, --citizens CITIZENS
+                        Number of citizens in test data.
   -p PAIRS, --pairs PAIRS
                         Relationships number.
   -t TOWNS, --towns TOWNS
   -c CONCURRENCY, --concurrency CONCURRENCY
-                        Number of multiple requests to make at a time
+                        Number of concurrency requests at one moment.
   -r REQUESTS, --requests REQUESTS
-                        Number of requests to perform
+                        Number of requests to perform.
   -a ADDRESS, --address ADDRESS
                         Address to test.
+
 ```
 
 
