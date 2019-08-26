@@ -1,14 +1,16 @@
 """
 Tools to put and get data from DB.
 """
+import re
+
 import psycopg2
+from flask import current_app as app
 
 
 DB_CREDENTIALS = {
     'dbname': 'api_db',
     'user': 'api',
     'host': 'db',
-    'password': 'password',
 }
 GET_TABLES_SQL = """
     SELECT table_name
@@ -16,7 +18,7 @@ GET_TABLES_SQL = """
     WHERE table_schema = 'public';
 """
 CREATE_TABLE_SQL = """
-    CREATE TABLE %s (
+    CREATE TABLE import_{} (
         citizen_id integer PRIMARY KEY,
         town varchar(256),
         street varchar(256),
@@ -40,12 +42,16 @@ FIELD_NAMES = [
     'gender',
     'relatives',
 ]
-INSERT_INTO_SQL = 'INSERT INTO %s VALUES %s;'
+INSERT_INTO_SQL = 'INSERT INTO import_{} VALUES '
+TABLE_NAME_PATTERN = 'import_(\\d+)'
 
 
-def tables_number_at_db(cur):
+def get_new_table_id(cur):
     cur.execute(GET_TABLES_SQL)
-    return len(cur.fetchall())
+    table_ids = [int(re.match(TABLE_NAME_PATTERN, table[0])[1])
+                 for table in cur.fetchall()
+                 if re.match(TABLE_NAME_PATTERN, table[0]) is not None]
+    return max(table_ids) + 1
 
 
 def check_import_exists(import_id, cur):
@@ -68,22 +74,32 @@ def check_citizen_relatives_exist(import_id, citizen_id):
     pass
 
 
-def prepare_citizen_data(citizen_data):
-    return [citizen_data[field] for field in FIELD_NAMES]
+def prepare_citizen_data(citizen_data, cur):
+    data_as_tuple = tuple(citizen_data[field]
+                          for field in FIELD_NAMES)
+    return (cur
+            .mogrify(INSERT_DATA_PATTERN, data_as_tuple)
+            .decode('utf-8'))
 
 
 def save_new_import(citizens):
     with psycopg2.connect(**DB_CREDENTIALS) as conn:
         with conn.cursor() as cur:
-            import_id = tables_number_at_db(cur)
-            cur.execute(CREATE_TABLE_SQL, (import_id,))
-            citizens_str_data = [cur.mogrify(INSERT_DATA_PATTERN,
-                                             prepare_citizen_data(citizen_data))
+            app.logger.debug('DB cursor is ready...')
+            import_id = get_new_table_id(cur)
+            app.logger.debug('New import id is %d', import_id)
+            cur.execute(CREATE_TABLE_SQL.format(import_id))
+            app.logger.debug('Table import_%d is created', import_id)
+            citizens_str_data = [prepare_citizen_data(citizen_data, cur)
                                  for citizen_data in citizens]
+            app.logger.debug('There is %d rows to insert.',
+                             len(citizens_str_data))
             data_to_insert = ','.join(citizens_str_data)
-            cur.execute(INSERT_INTO_SQL, (import_id, data_to_insert))
+
+            app.logger.debug('Data inserting...')
+            cur.execute(INSERT_INTO_SQL.format(import_id) + data_to_insert)
+            app.logger.debug('Success!')
             conn.commit()
-    import_id = 0
     return {"import_id": import_id}
 
 

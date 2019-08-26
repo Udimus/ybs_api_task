@@ -13,6 +13,7 @@ from flask import (
     make_response,
     logging as flask_logging,
 )
+import psycopg2
 
 from api_tools.check_data import (
     check_citizens_group,
@@ -27,6 +28,7 @@ from api_tools.db_tools import (
     load_import,
     calculate_birthdays,
     calculate_ages_stat,
+    prepare_citizen_data,
 )
 
 app = Flask(__name__)
